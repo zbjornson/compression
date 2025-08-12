@@ -25,6 +25,13 @@ var compression = require('..')
 var hasBrotliSupport = 'createBrotliCompress' in zlib
 var brotli = hasBrotliSupport ? it : it.skip
 
+/**
+ * @const
+ * whether current node version has zstd support
+ */
+var hasZstdSupport = 'createZstdCompress' in zlib
+var zstd = hasZstdSupport ? it : it.skip
+
 describe('compression()', function () {
   it('should skip HEAD', function (done) {
     var server = createServer({ threshold: 0 }, function (req, res) {
@@ -815,6 +822,52 @@ describe('compression()', function () {
     })
   })
 
+  describe('when "Accept-Encoding: zstd"', function () {
+    zstd('should respond with zstd', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'zstd')
+        .expect('Content-Encoding', 'zstd', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: zstd" and passing compression level', function () {
+    zstd('should respond with zstd', function (done) {
+      var params = {}
+      params[zlib.constants.ZSTD_c_compressionLevel] = 10
+
+      var server = createServer({ threshold: 0, zstd: { params: params } }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'zstd')
+        .expect('Content-Encoding', 'zstd', done)
+    })
+
+    zstd('shouldn\'t break compression when gzip is requested', function (done) {
+      var params = {}
+      params[zlib.constants.ZSTD_c_compressionLevel] = 9
+
+      var server = createServer({ threshold: 0, zstd: { params: params } }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip')
+        .expect('Content-Encoding', 'gzip', done)
+    })
+  })
+
   describe('when "Accept-Encoding: gzip, deflate"', function () {
     it('should respond with gzip', function (done) {
       var server = createServer({ threshold: 0 }, function (req, res) {
@@ -886,6 +939,20 @@ describe('compression()', function () {
     })
   })
 
+  describe('when "Accept-Encoding: deflate, gzip, br, zstd"', function () {
+    brotli('should respond with br', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'deflate, gzip, br, zstd')
+        .expect('Content-Encoding', 'br', done)
+    })
+  })
+
   describe('when "Accept-Encoding: gzip;q=1, br;q=0.3"', function () {
     brotli('should respond with gzip', function (done) {
       var server = createServer({ threshold: 0 }, function (req, res) {
@@ -896,6 +963,20 @@ describe('compression()', function () {
       request(server)
         .get('/')
         .set('Accept-Encoding', 'gzip;q=1, br;q=0.3')
+        .expect('Content-Encoding', 'gzip', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: gzip;q=1, br;q=0.3, zstd;q=0.5"', function () {
+    it('should respond with gzip', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip;q=1, br;q=0.3, zstd;q=0.5')
         .expect('Content-Encoding', 'gzip', done)
     })
   })
@@ -911,6 +992,62 @@ describe('compression()', function () {
         .get('/')
         .set('Accept-Encoding', 'gzip, br;q=0.8')
         .expect('Content-Encoding', 'gzip', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: gzip, br;q=0.8, zstd;q=0.9"', function () {
+    it('should respond with gzip', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip, br;q=0.8, zstd;q=0.9')
+        .expect('Content-Encoding', 'gzip', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: gzip;q=0.2, br;q=0.8, zstd;q=0.6"', function () {
+    brotli('should respond with brotli', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip;q=0.2, br;q=0.8, zstd;q=0.6')
+        .expect('Content-Encoding', 'br', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: gzip;q=0.2, br;q=0.4, zstd;q=0.6"', function () {
+    zstd('should respond with zstd', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip;q=0.2, br;q=0.4, zstd;q=0.6')
+        .expect('Content-Encoding', 'zstd', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: gzip;q=0.1, br;q=0.2, zstd"', function () {
+    zstd('should respond with zstd', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'gzip;q=0.1, br;q=0.2, zstd')
+        .expect('Content-Encoding', 'zstd', done)
     })
   })
 
@@ -939,6 +1076,20 @@ describe('compression()', function () {
         .get('/')
         .set('Accept-Encoding', 'deflate, br')
         .expect('Content-Encoding', 'br', done)
+    })
+  })
+
+  describe('when "Accept-Encoding: deflate, zstd"', function () {
+    zstd('should respond with zstd', function (done) {
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'deflate, zstd')
+        .expect('Content-Encoding', 'zstd', done)
     })
   })
 
@@ -1123,6 +1274,32 @@ describe('compression()', function () {
         .end()
     })
 
+    zstd('should flush small chunks for zstd', function (done) {
+      var chunks = 0
+      var next
+      var server = createServer({ threshold: 0 }, function (req, res) {
+        next = writeAndFlush(res, 2, Buffer.from('..'))
+        res.setHeader('Content-Type', 'text/plain')
+        next()
+      })
+
+      function onchunk (chunk) {
+        assert.ok(chunks++ < 20)
+        assert.strictEqual(chunk.toString(), '..')
+        next()
+      }
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'zstd')
+        .request()
+        .on('response', unchunk('zstd', onchunk, function (err) {
+          if (err) return done(err)
+          server.close(done)
+        }))
+        .end()
+    })
+
     it('should flush small chunks for deflate', function (done) {
       var chunks = 0
       var next
@@ -1213,6 +1390,19 @@ describe('compression()', function () {
         .get('/')
         .set('Accept-Encoding', '')
         .expect('Content-Encoding', 'br')
+        .expect(200, done)
+    })
+
+    zstd('should compress when enforceEncoding is zstd', function (done) {
+      var server = createServer({ threshold: 0, enforceEncoding: 'zstd' }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', '')
+        .expect('Content-Encoding', 'zstd')
         .expect(200, done)
     })
 
@@ -1425,6 +1615,9 @@ function unchunk (encoding, onchunk, onend) {
         break
       case 'br':
         stream = res.pipe(zlib.createBrotliDecompress())
+        break
+      case 'zstd':
+        stream = res.pipe(zlib.createZstdDecompress())
         break
     }
 

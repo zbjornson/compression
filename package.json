@@ -19,6 +19,7 @@
     "middleware",
     "express",
     "brotli",
+    "zstd",
     "http",
     "stream"
   ],
