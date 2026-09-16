@@ -72,32 +72,23 @@ var encodingSupported = ['gzip', 'deflate', 'identity', 'br', 'zstd']
  */
 
 function compression (options) {
-  var opts = options || {}
-  var optsBrotli = {}
-  var optsZstd = {}
+  options = options || {}
 
-  if (hasBrotliSupport) {
-    Object.assign(optsBrotli, opts.brotli)
+  var optsZstd = { ...options.zstd }
 
-    var brotliParams = {}
-    brotliParams[zlib.constants.BROTLI_PARAM_QUALITY] = 4
-
-    // set the default level to a reasonable value with balanced speed/ratio
-    optsBrotli.params = Object.assign(brotliParams, optsBrotli.params)
-  }
-
-  if (hasZstdSupport) {
-    Object.assign(optsZstd, opts.zstd)
+  var optsBrotli = {
+    ...options.brotli,
+    params: {
+      // set the default level to a reasonable value with balanced speed/ratio
+      [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
+      ...options.brotli?.params
+    }
   }
 
   // options
-  var filter = opts.filter || shouldCompress
-  var threshold = bytes.parse(opts.threshold)
-  var enforceEncoding = opts.enforceEncoding || 'identity'
-
-  if (threshold == null) {
-    threshold = 1024
-  }
+  var filter = options.filter || shouldCompress
+  var threshold = bytes.parse(options.threshold) ?? 1024
+  var enforceEncoding = options.enforceEncoding || 'identity'
 
   return function compression (req, res, next) {
     var ended = false
@@ -271,12 +262,12 @@ function compression (options) {
       // compression stream
       debug('%s compression', method)
       stream = method === 'gzip'
-        ? zlib.createGzip(opts)
+        ? zlib.createGzip(options)
         : method === 'br'
           ? zlib.createBrotliCompress(optsBrotli)
           : method === 'zstd'
             ? zlib.createZstdCompress(optsZstd)
-            : zlib.createDeflate(opts)
+            : zlib.createDeflate(options)
 
       // the response already closed before the stream was created, so the
       // close listener above has already run. Release the stream now and drop
