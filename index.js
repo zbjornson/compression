@@ -18,7 +18,6 @@ var Negotiator = require('negotiator')
 var bytes = require('bytes')
 var compressible = require('compressible')
 var debug = require('node:util').debuglog('compression', fn => { debug = fn })
-var destroy = require('destroy')
 var onHeaders = require('on-headers')
 var vary = require('vary')
 var zlib = require('zlib')
@@ -189,12 +188,10 @@ function compression (options) {
     // Release the compression stream when the response closes, freeing native
     // zlib resources even if the client disconnected before it finished.
     // Registered before onHeaders so a close before the stream exists is not
-    // missed; destroy() no-ops safely when no stream was created, and is used
-    // rather than stream.destroy() because destroy() alone leaks the zlib
-    // handle on some Node.js versions.
+    // missed.
     _on.call(res, 'close', function onResponseClose () {
       closed = true
-      destroy(stream)
+      if (stream) stream.destroy()
     })
 
     onHeaders(res, function onResponseHeaders () {
@@ -260,8 +257,7 @@ function compression (options) {
       // close listener above has already run. Release the stream now and drop
       // the reference so later writes fall back to the raw response.
       if (closed) {
-        destroy(stream)
-        stream = null
+        stream.destroy()
         return
       }
 
