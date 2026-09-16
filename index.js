@@ -53,7 +53,8 @@ function compression (options) {
   var optsBrotli = {
     ...options.brotli,
     params: {
-      // set the default level to a reasonable value with balanced speed/ratio
+      // set the default level to a reasonable value with balanced speed/ratio,
+      // see https://blog.cloudflare.com/this-is-brotli-from-origin/#testing
       [zlib.constants.BROTLI_PARAM_QUALITY]: 4,
       ...options.brotli?.params
     }
