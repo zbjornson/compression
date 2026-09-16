@@ -17,7 +17,7 @@
 var Negotiator = require('negotiator')
 var bytes = require('bytes')
 var compressible = require('compressible')
-var debug = require('debug')('compression')
+var debug = require('node:util').debuglog('compression', fn => { debug = fn })
 var destroy = require('destroy')
 var onHeaders = require('on-headers')
 var vary = require('vary')
