@@ -30,38 +30,12 @@ module.exports = compression
 module.exports.filter = shouldCompress
 
 /**
- * @const
- * whether current node version has brotli support
- */
-var hasBrotliSupport = 'createBrotliCompress' in zlib
-
-/**
- * @const
- * whether current node version has zstd support
- */
-var hasZstdSupport = 'createZstdCompress' in zlib
-
-/**
  * Module variables.
  * @private
  */
 var cacheControlNoTransformRegExp = /(?:^|,)\s*?no-transform\s*?(?:,|$)/i
 
-var SUPPORTED_ENCODING = (function () {
-  var supported = ['gzip', 'deflate', 'identity']
-  if (hasZstdSupport) supported.unshift('zstd')
-  if (hasBrotliSupport) supported.unshift('br')
-  return supported
-})()
-
-var PREFERRED_ENCODING = (function () {
-  var preferred = ['gzip']
-  if (hasZstdSupport) preferred.unshift('zstd') // prefer zstd over gzip
-  if (hasBrotliSupport) preferred.unshift('br') // prefer br over zstd or gzip
-  return preferred
-})()
-
-var encodingSupported = ['gzip', 'deflate', 'identity', 'br', 'zstd']
+const SUPPORTED_ENCODINGS = ['zstd', 'br', 'gzip', 'deflate', 'identity']
 
 /**
  * Compress response data with gzip / deflate.
@@ -89,6 +63,7 @@ function compression (options) {
   var filter = options.filter || shouldCompress
   var threshold = bytes.parse(options.threshold) ?? 1024
   var enforceEncoding = options.enforceEncoding || 'identity'
+  const preferredEncodings = options.preferredEncodings || ['br', 'zstd', 'gzip']
 
   return function compression (req, res, next) {
     var ended = false
@@ -246,10 +221,10 @@ function compression (options) {
 
       // compression method
       var negotiator = new Negotiator(req)
-      var method = negotiator.encoding(SUPPORTED_ENCODING, PREFERRED_ENCODING)
+      var method = negotiator.encoding(SUPPORTED_ENCODINGS, preferredEncodings)
 
       // if no method is found, use the default encoding
-      if (!req.headers['accept-encoding'] && encodingSupported.indexOf(enforceEncoding) !== -1) {
+      if (!req.headers['accept-encoding'] && SUPPORTED_ENCODINGS.includes(enforceEncoding)) {
         method = enforceEncoding
       }
 

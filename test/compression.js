@@ -937,6 +937,21 @@ describe('compression()', function () {
         .set('Accept-Encoding', 'deflate, gzip, br')
         .expect('Content-Encoding', 'br', done)
     })
+
+    brotli('should respond with first server-preferred encoding', function (done) {
+      var server = createServer({
+        threshold: 0,
+        preferredEncodings: ['deflate', 'br']
+      }, function (req, res) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.end('hello, world')
+      })
+
+      request(server)
+        .get('/')
+        .set('Accept-Encoding', 'deflate, gzip, br')
+        .expect('Content-Encoding', 'deflate', done)
+    })
   })
 
   describe('when "Accept-Encoding: deflate, gzip, br, zstd"', function () {
