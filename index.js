@@ -41,10 +41,12 @@ const SUPPORTED_ENCODINGS = ['zstd', 'br', 'gzip', 'deflate', 'identity']
  * Compress response data with gzip / deflate.
  *
  * @param {Object} [options]
- * @return {Function} middleware
+ * @param {string} [options.threshold]
+ * @param {string[]} [options.preferredEncodings]
+ * @param {() => import("node:stream").Transform} [options.createGzip]
+ * @return {(req: any, res: any, next: any) => void} middleware
  * @public
  */
-
 function compression (options) {
   options = options || {}
 
@@ -65,6 +67,7 @@ function compression (options) {
   var threshold = bytes.parse(options.threshold) ?? 1024
   var enforceEncoding = options.enforceEncoding || 'identity'
   const preferredEncodings = options.preferredEncodings || ['br', 'zstd', 'gzip']
+  const createGzip = options.createGzip || zlib.createGzip
 
   return function compression (req, res, next) {
     var ended = false
@@ -238,7 +241,7 @@ function compression (options) {
       // compression stream
       debug('%s compression', method)
       stream = method === 'gzip'
-        ? zlib.createGzip(options)
+        ? createGzip(options)
         : method === 'br'
           ? zlib.createBrotliCompress(optsBrotli)
           : method === 'zstd'
